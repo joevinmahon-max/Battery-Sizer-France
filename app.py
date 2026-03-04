@@ -401,53 +401,38 @@ def compute_import_export_cashflow(
 
     return import_cost, export_revenue
 
-# ---------------------------
-# Détection ligne d'en-tête
-# ---------------------------
-def find_header_row(df, date_tokens, import_tokens, max_rows=200):
-    """
-    Cherche la ligne contenant au moins un token date ET un token import.
-    Ignore les lignes trop courtes (résumés) ou vides.
-    Pas de normalisation.
-    """
+# Fonction de détection ligne d'en-tête
+def find_header_row(df, date_tokens, import_tokens, export_tokens, max_rows=120):
     for r in range(min(max_rows, len(df))):
-        row = df.iloc[r].astype(str).str.strip().tolist()
-        if len(row) < 2:  # ligne probablement résumé ou vide
-            continue
-        row_text = " | ".join(row)
-        date_match = any(t in row_text for t in date_tokens)
-        import_match = any(t in row_text for t in import_tokens)
-        if date_match and import_match:
+        row = df.iloc[r].astype(str).str.lower().str.strip().tolist()
+        row_text = " | ".join(row)      
+        if any(t in row_text for t in date_tokens) \
+           and any(t in row_text for t in import_tokens) \
+           and any(t in row_text for t in export_tokens):
             return r
     return None
 
-# ---------------------------
-# Détection colonnes
-# ---------------------------
-def find_columns(df, tokens, expected_count):
-    """
-    Cherche les colonnes correspondant aux tokens donnés.
-    Ne normalise pas, match exact partiel.
-    """
-    if not hasattr(find_columns, "used_columns"):
-        find_columns.used_columns = set()
+# Fonction de détection collones
+def find_column(df, tokens):
+    import re
+    
+    # Colonnes déjà sélectionnées (stockées dynamiquement)
+    if not hasattr(find_column, "used_columns"):
+        find_column.used_columns = set()
 
-    found_cols = []
     for col in df.columns:
-        if col in find_columns.used_columns:
+        if col in find_column.used_columns:
             continue
-        col_str = str(col).strip()
-        for t in tokens:
-            if t in col_str:  # match exact partiel, pas de normalisation
-                found_cols.append(col)
-                find_columns.used_columns.add(col)
-                break
-        if len(found_cols) == expected_count:
-            break
 
-    if len(found_cols) != expected_count:
-        return None
-    return found_cols
+        col_lower = str(col).lower()
+
+        for t in tokens:
+            # match mot entier uniquement
+            if re.search(rf"\b{re.escape(t)}\b", col_lower):
+                find_column.used_columns.add(col)
+                return col
+
+    return None
 
 # Fonction de SIMULATION BATTERIE -- COEUR DU PROG
 def simulate_battery(exp_array, imp_array, cap_kwh, power_kw, soc_min_pct, eta, dt_hours):
