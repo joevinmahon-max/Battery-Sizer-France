@@ -712,6 +712,8 @@ if uploaded_file:
                 
         df_full = df_full.reset_index().rename(columns={"index": date_col})
         df = df_full.sort_values(date_col).reset_index(drop=True)
+        imp_col = "import_kWh"
+        exp_col = "export_kWh"
         
         st.success("✅ Année reconstruite à partir des valeurs journalières.")
         st.write(f"📊 Nombre de lignes : {len(df)}")
