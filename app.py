@@ -535,18 +535,14 @@ if uploaded_file:
 
         # Choix des tokens import selon le tarif
         if mode_tarif == "Tarif unique":
-            import_tokens = ["Index"]
+            import_tokens = import_tokens
             expected_import_count = 1
         elif mode_tarif == "Multi Tarifs":
             if GRD == "Standard":
-                import_tokens = ["Creuses", "Pleines"]
+                import_tokens = import_tokensHPHC
                 expected_import_count = 2
             elif GRD == "Tempo":
-                import_tokens = [
-                    "Creuses Bleu", "Pleines Bleu",
-                    "Creuses Blanc", "Pleines Blanc",
-                    "Creuses Rouge", "Pleines Rouge"
-                ]
+                import_tokens = import_tokensTempo
                 expected_import_count = 6
         
         # Détection ligne d'en-tête
