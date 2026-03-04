@@ -63,7 +63,7 @@ dt_hours = 0.25
 st.sidebar.header("📂 Type de données")
 data_mode = st.sidebar.radio(
     "Format des données",
-    ["Fichier EDF (mes-index-elec)", "Fichiers mensuels (12 fichiers cumulés HUAWEI)"]
+    ["Fichier EDF (mes-index-elec)"]
 )
 
 if data_mode == "Fichier EDF (mes-index-elec)":
@@ -111,14 +111,6 @@ if data_mode == "Fichier EDF (mes-index-elec)":
     else:
         unite="kWh"
         export_is_monthly = False
-else : 
-    unite = st.sidebar.selectbox(
-    "Unité des valeurs Import / Export",
-    ["kW", "kWh", "Wh"],
-    index=1)
-    
-    importExport_is_monthly = False
-    export_is_monthly = False
             
 if unite == "kW":
     values_are_kw = True
@@ -630,404 +622,102 @@ if uploaded_file:
         # Détection colonne date
         date_col = find_columns(df, date_tokens, expected_count=1)[0]
         st.success(f"Colonne date détectée : {date_col}")
+        
+        # Afficher lignes sans date
+        missing_dates = df[df[date_col].isna()]
+        if not missing_dates.empty:
+            st.warning(f"⚠️ {len(missing_dates)} lignes n'ont pas de date et seront ignorées.")
+            st.dataframe(missing_dates.head(10))
 
-        if importExport_is_monthly:
-            date_col = find_column(df, date_tokens)
-            imp_col = find_column(df, import_tokens)
-            exp_col = find_column(df, export_tokens)
+        # Supprimer uniquement les lignes sans date
+        df = df.dropna(subset=[date_col]).reset_index(drop=True)
 
-            if date_col is None :
-                st.error("Impossible de détecter automatiquement la colonne date.")
-            elif imp_col is None :
-                st.error("Impossible de détecter automatiquement la colonne import.")
-            elif exp_col is None:
-                st.error("Impossible de détecter automatiquement la colonne export.")
-            if date_col is None or imp_col is None or exp_col is None:
-                st.write("Colonnes détectées :", list(df.columns))
-                st.stop()
-            else:
-                st.success(f"Colonnes détectées : date={date_col}, import={imp_col}, export={exp_col}")
+        st.header("🔹 Reconstruction journalière")
 
-            # Afficher lignes sans date
-            missing_dates = df[df[date_col].isna()]
-            if not missing_dates.empty:
-                st.warning(f"⚠️ {len(missing_dates)} lignes n'ont pas de date et seront ignorées.")
-                st.dataframe(missing_dates.head(10))
-    
-            # Supprimer uniquement les lignes sans date
-            df = df.dropna(subset=[date_col]).reset_index(drop=True)
-
-            st.header(" 🔹 Nettoyage et conversion")
-            # Nettoyage
-            df[imp_col] = pd.to_numeric(df[imp_col], errors='coerce').fillna(0)
-            df[exp_col] = pd.to_numeric(df[exp_col], errors='coerce').fillna(0)
-            # certaines dates peuvent avoir DST
-            df[date_col] = remove_dst(df[date_col])
-            
-            # Conversion en datetime
-            df[date_col] = pd.to_datetime(df[date_col], errors='coerce', utc=True)
-            
-            df[date_col] = df[date_col].dt.tz_convert(None)
-    
-            # Trier par date
-            df = df.sort_values(date_col).reset_index(drop=True)
-
-            # =====================================================
-            # CAS : FICHIER CONTIENT UNIQUEMENT 12 TOTAUX MENSUELS
-            # =====================================================
-            
-            if len(df) != 12:
-                st.error("❌ Le fichier doit contenir exactement 12 lignes (1 par mois).")
-                st.stop()
-            
-            # Année détectée
-            year = pd.to_datetime(df[date_col]).dt.year.mode()[0]
-            
-            # Création index annuel complet
-            date_range = pd.date_range(
-                start=f"{year}-01-01 00:00:00",
-                end=f"{year}-12-31 23:59:59",
-                freq=f"{int(dt_hours*60)}min"
-            )
-            
-            df_full = pd.DataFrame(index=date_range)
-            df_full["month"] = df_full.index.month
-            df_full["hour"] = df_full.index.hour
-            
-            df_full["import_kWh"] = 0.0
-            df_full["export_kWh"] = 0.0
-            df_full[imp_col] = df[imp_col]
-            df_full[exp_col] = df[exp_col]
-            
-            # ===============================
-            # Reconstruction mensuelle
-            # ===============================
-            for _, row in df.iterrows():
-            
-                month = pd.to_datetime(row[date_col]).month
-                total_import = row[imp_col]
-                total_export = row[exp_col]
-            
-                mask_month = df_full["month"] == month
-            
-                # ----------------------
-                # IMPORT → réparti 24h
-                # ----------------------
-                steps_month = mask_month.sum()
-                import_per_step = total_import / steps_month
-                df_full.loc[mask_month, "import_kWh"] = import_per_step
-            
-                # ----------------------
-                # EXPORT → 10h–16h
-                # ----------------------
-                solar_mask = mask_month & df_full["hour"].between(10, 16)
-            
-                steps_solar = solar_mask.sum()
-            
-                if steps_solar == 0:
-                    st.error(f"❌ Aucun créneau solaire détecté pour mois {month}.")
-                    st.stop()
-            
-                export_per_step = total_export / steps_solar
-                df_full.loc[solar_mask, "export_kWh"] = export_per_step
-            
-            # =====================================================
-            # Remplacement propre par la reconstruction annuelle
-            # =====================================================
-            
-            df_full = df_full.reset_index().rename(columns={"index": date_col})
-            
-            df = df_full.copy()
-            df = df.sort_values(date_col).reset_index(drop=True)
-            
-            st.success("✅ Année complète reconstruite avec contrainte Export 10h–16h et Import 24/24h.")
-
-        else:
-            date_col = find_column(df, date_tokens)
-            imp_col = find_column(df, import_tokens)
-            exp_col = find_column(df, export_tokens)
-    
-            if date_col is None :
-                st.error("Impossible de détecter automatiquement la colonne date.")
-            elif imp_col is None :
-                st.error("Impossible de détecter automatiquement la colonne import.")
-            elif exp_col is None:
-                st.error("Impossible de détecter automatiquement la colonne export.")
-            if date_col is None or imp_col is None or exp_col is None:
-                st.write("Colonnes détectées :", list(df.columns))
-                st.stop()
-            else:
-                st.success(f"Colonnes détectées : date={date_col}, import={imp_col}, export={exp_col}")
-            
-            # Afficher lignes sans date
-            missing_dates = df[df[date_col].isna()]
-            if not missing_dates.empty:
-                st.warning(f"⚠️ {len(missing_dates)} lignes n'ont pas de date et seront ignorées.")
-                st.dataframe(missing_dates.head(10))
-    
-            # Supprimer uniquement les lignes sans date
-            df = df.dropna(subset=[date_col]).reset_index(drop=True)
+        # Nettoyage numérique (toutes les colonnes import)
+        for col in import_cols:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
         
-            st.header(" 🔹 Nettoyage et conversion")
-            # Nettoyage
-            df[imp_col] = pd.to_numeric(df[imp_col], errors='coerce').fillna(0)
-            df[exp_col] = pd.to_numeric(df[exp_col], errors='coerce').fillna(0)
-            # certaines dates peuvent avoir DST
-            df[date_col] = remove_dst(df[date_col])
-            
-            # Conversion en datetime
-            df[date_col] = pd.to_datetime(df[date_col], errors='coerce', utc=True)
-            
-            df[date_col] = df[date_col].dt.tz_convert(None)
-    
-            # Trier par date
-            df = df.sort_values(date_col).reset_index(drop=True)
+        # Nettoyage date
+        df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+        df = df.sort_values(date_col).reset_index(drop=True)
         
-            # Détection automatique si compteur cumulatif
-            import_is_cumulative = (df[imp_col].diff().dropna() >= 0).mean() > 0.95
-            export_is_cumulative = (df[exp_col].diff().dropna() >= 0).mean() > 0.95
-    
-            st.info(
-            f"Détection automatique : Import cumulatif = {import_is_cumulative}, "
-            f"Export cumulatif = {export_is_cumulative}"
-            )
-    
-            # -------------------------------------------------
-            # 1 : Données en kW instantané
-            # -------------------------------------------------
-            if values_are_kw and not import_is_cumulative:
-        
-                df["dt_h"] = df[date_col].diff().dt.total_seconds() / 3600
-                df.loc[0, "dt_h"] = df["dt_h"].median()
-                
-                dt_hours = df["dt_h"].median()
-                st.info(
-                f"Détection automatique : dt_hours = {dt_hours}")
-        
-                df["import_kWh"] = df[imp_col] * df["dt_h"]
-                df["export_kWh"] = df[exp_col] * df["dt_h"]
-        
-            # -------------------------------------------------
-            # 2 : Compteur cumulatif
-            # -------------------------------------------------
-            elif import_is_cumulative:
-        
-                df["import_kWh"] = df[imp_col].diff()
-                df["export_kWh"] = df[exp_col].diff()
-        
-                df.loc[0, "import_kWh"] = df.loc[0, imp_col]
-                df.loc[0, "export_kWh"] = df.loc[0, exp_col]
-    
-                 # Première ligne → supprimer car diff invalide
-                df = df.iloc[1:].reset_index(drop=True)
-        
-            # -------------------------------------------------
-            # 3 : Déjà en kWh par intervalle
-            # -------------------------------------------------
-            else:
-                if unite == "kWh": # En kWh
-                    df["import_kWh"] = df[imp_col]
-                    df["export_kWh"] = df[exp_col]
-                else:             # En Wh
-                    df["import_kWh"] = df[imp_col]/1000
-                    df["export_kWh"] = df[exp_col]/1000
-        
-            # Sécurité finale
-            df["import_kWh"] = df["import_kWh"].clip(lower=0)
-            df["export_kWh"] = df["export_kWh"].clip(lower=0)
-            
-            # -----------------------------
-            # Gestion doublons DST
-            # -----------------------------
-            # On identifie les doublons
-            duplicates_mask = df.duplicated(subset=[date_col], keep=False)
-            if duplicates_mask.any():
-                # Masque des doublons en octobre
-                october_mask = df[date_col].dt.month == 10
-                october_duplicates = duplicates_mask & october_mask
-            
-                if october_duplicates.any():
-                    st.warning(f"⚠️ {(october_duplicates.sum()/2)} doublons détectés en octobre (ignorés car DST).")
-                else:
-                    st.warning(f"⚠️Doublons détectés hors octobre (Fusionnés).")
-                # Garder le premier doublon sauf ceux en octobre
-                df = df[~(duplicates_mask & ~october_mask)].reset_index(drop=True)
-
-        # -------------------------------------------------
-        # Nettoyer le DataFrame : garder uniquement les colonnes utiles
-        # -------------------------------------------------
-        columns_to_keep = [date_col, imp_col, exp_col, "import_kWh", "export_kWh"]
-        df = df[[c for c in columns_to_keep if c in df.columns]]
-        
-        st.write("✅ Aperçu des données converties :")
-        st.write(f"📊 Nombre de lignes : {len(df)}")
-        st.dataframe(df.head())
-
-    # ==========================================================
-    # CAS 2 : FICHIERS MENSUELS
-    # ==========================================================
-    else:
-        if not uploaded_file or len(uploaded_file) != 12:
-            st.error("Veuillez charger exactement 12 fichiers (1 par mois).")
+        # Vérification : on attend 365 ou 366 lignes (1 par jour)
+        if len(df) < 300:
+            st.error("❌ Le fichier semble ne pas contenir des valeurs journalières complètes.")
             st.stop()
-
-        df_list = []
-
-        for file in uploaded_file:
-
-            file_type = file.name.split('.')[-1].lower()
-
-            if file_type == "csv":
-                df_month = pd.read_csv(file, sep=None, header=None, engine='python')
-            else:
-                df_month = pd.read_excel(file, header=None)
-
-            # =============================
-            # Détection colonnes EXACTES
-            # =============================
-            date_col = None
-
-            # tokens pour la détection automatique
-            date_tokens = ["début", "date", "datetime", "horodatage", "timestamp", "date/heure", "date heure"]
-            import_tokens = ["soutirage", "import", "achat", "reseau", "consommation", "négative"]
-            export_tokens = ["surplus", "export", "excedent", "reinjection", "réinjection", "positive", "injection"]
-
-            # Verification de la longueur
-            LongBase += len(df_month)
-
-            # chercher ligne d'en-tête automatiquement
-            header_row = find_header_row(df_month, date_tokens, import_tokens, export_tokens)
-            if header_row is not None:
-                df_month = pd.read_excel(file, header=header_row) if file_type != "csv" else pd.read_csv(file, sep=';', header=header_row, engine='python')
-            else:
-                st.error(f"❌ Impossible de détecter la ligne d'en-tête dans {file.name}")
-                st.warning(f"Vérifier que TOUS les mots clés sont présent sur la même ligne OU essayer par Mots-clés personnalisés")
-                st.info(f"date_tokens {date_tokens}")
-                st.info(f"import_tokens {import_tokens}")
-                st.info(f"export_tokens {export_tokens}")
-                st.stop()
-            
-            # Réinitialiser l'état avant chaque fichier
-            find_column.used_columns = set()
-            
-            # détecter colonnes
-            date_col = find_column(df_month, date_tokens)
-            imp_col = find_column(df_month, import_tokens)
-            exp_col = find_column(df_month, export_tokens)
-
-            if date_col is None :
-                st.error("Impossible de détecter automatiquement la colonne date.")
-            elif imp_col is None :
-                st.error("Impossible de détecter automatiquement la colonne import.")
-            elif exp_col is None:
-                st.error("Impossible de détecter automatiquement la colonne export.")
-            if date_col is None or imp_col is None or exp_col is None:
-                st.write("Colonnes détectées :", list(df.columns))
-                st.stop()
-            else:
-                st.success(f"Colonnes détectées dans {file.name} : date={date_col}, import={imp_col}, export={exp_col}")
-            
-            # -----------------------------
-            # Nettoyage & conversion
-            # -----------------------------
-            df_month[imp_col] = pd.to_numeric(df_month[imp_col], errors="coerce").fillna(0)
-            df_month[exp_col] = pd.to_numeric(df_month[exp_col], errors="coerce").fillna(0)
-            # certaines dates peuvent avoir DST
-            df_month[date_col] = remove_dst(df_month[date_col])
-            
-            # Conversion en datetime
-            df_month[date_col] = pd.to_datetime(df_month[date_col], errors='coerce', utc=True)
-            
-            df_month[date_col] = df_month[date_col].dt.tz_convert(None)
-
-            # Trier par date
-            df_month = df_month.sort_values(date_col).reset_index(drop=True)
-            
-            # Détection automatique si compteur cumulatif
-            import_is_cumulative = (df_month[imp_col].diff().dropna() >= 0).mean() > 0.95
-            export_is_cumulative = (df_month[exp_col].diff().dropna() >= 0).mean() > 0.95
-    
-            st.info(
-                f"Détection automatique {file.name} : Import cumulatif = {import_is_cumulative}, "
-                f"Export cumulatif = {export_is_cumulative}"
-            )
-    
-            # -------------------------------------------------
-            # 1 : Données en kW instantané
-            # -------------------------------------------------
-            if values_are_kw and not import_is_cumulative:
-            
-                df_month["dt_h"] = df_month[date_col].diff().dt.total_seconds() / 3600
-                df_month.loc[0, "dt_h"] = df_month["dt_h"].median()
-                
-                dt_hours = df_month["dt_h"].median()
-                st.info(
-                f"Détection automatique : dt_hours = {dt_hours}")
-            
-                df_month["import_kWh"] = df_month[imp_col] * df_month["dt_h"]
-                df_month["export_kWh"] = df_month[exp_col] * df_month["dt_h"]
-            
-            # -------------------------------------------------
-            # 2 : Compteur cumulatif
-            # -------------------------------------------------
-            elif import_is_cumulative:
-            
-                df_month["import_kWh"] = df_month[imp_col].diff()
-                df_month["export_kWh"] = df_month[exp_col].diff()
-            
-                df_month.loc[0, "import_kWh"] = df_month.loc[0, imp_col]
-                df_month.loc[0, "export_kWh"] = df_month.loc[0, exp_col]
-            
-                 # Première ligne → supprimer car diff invalide
-                df_month = df_month.iloc[1:].reset_index(drop=True)
-            
-            # -------------------------------------------------
-            # 3 : Déjà en kWh par intervalle
-            # -------------------------------------------------
-            else:
-                if unite == "kWh": # En kWh
-                    df_month["import_kWh"] = df_month[imp_col]
-                    df_month["export_kWh"] = df_month[exp_col]
-                else:             # En Wh
-                    df_month["import_kWh"] = df_month[imp_col]/1000
-                    df_month["export_kWh"] = df_month[exp_col]/1000
-            
-            # Sécurité finale
-            df_month["import_kWh"] = df_month["import_kWh"].clip(lower=0)
-            df_month["export_kWh"] = df_month["export_kWh"].clip(lower=0)
-
-            # -----------------------------
-            # Gestion doublons DST
-            # -----------------------------
-            # On identifie les doublons
-            duplicates_mask = df_month.duplicated(subset=[date_col], keep=False)
-            if duplicates_mask.any():
-                # Masque des doublons en octobre
-                october_mask = df_month[date_col].dt.month == 10
-                october_duplicates = duplicates_mask & october_mask
-            
-                if october_duplicates.any():
-                    st.warning(f"⚠️ {(october_duplicates.sum()/2)} doublons détectés en octobre (ignorés car DST).")
-                else:
-                    st.warning(f"⚠️Doublons détectés hors octobre (Fusionnés).")
-                # Garder le premier doublon sauf ceux en octobre
-                df_month = df_month[~(duplicates_mask & ~october_mask)].reset_index(drop=True)
-                
-            # -----------------------------
-            # Colonnes finales
-            # -----------------------------
-            columns_to_keep = [date_col, imp_col, exp_col, "import_kWh", "export_kWh"]
-            
-            # Sélectionner les colonnes à conserver
-            df_month = df_month[[c for c in columns_to_keep if c in df_month.columns]]
-            
-            # Ajouter ce fichier à la liste pour fusion annuelle
-            df_list.append(df_month)
-    
-        # Fusion annuelle
-        df = pd.concat(df_list).sort_values(date_col).reset_index(drop=True)
         
-        st.success("✅ 12 fichiers mensuels fusionnés et convertis avec succès")
+        year = df[date_col].dt.year.mode()[0]
+        
+        # Création index annuel horaire
+        date_range = pd.date_range(
+            start=f"{year}-01-01 00:00:00",
+            end=f"{year}-12-31 23:00:00",
+            freq=f"{int(dt_hours*60)}min"
+        )
+        
+        df_full = pd.DataFrame(index=date_range)
+        df_full["date"] = df_full.index.date
+        df_full["hour"] = df_full.index.hour
+        df_full["import_kWh"] = 0.0
+
+        if expected_import_count == 1:
+            for _, row in df.iterrows():
+                day = row[date_col].date()
+                total = row[import_cols[0]]
+        
+                mask = df_full["date"] == day
+                steps = mask.sum()
+        
+                df_full.loc[mask, "import_kWh"] = total / steps
+        
+        elif expected_import_count == 2:
+            hc_col = import_cols[0]
+            hp_col = import_cols[1]
+            for _, row in df.iterrows():
+                day = row[date_col].date()
+                total_hc = row[hc_col]
+                total_hp = row[hp_col]
+        
+                mask_day = df_full["date"] == day
+        
+                mask_hc = mask_day & df_full["hour"].between(0, 5)
+                mask_hp = mask_day & df_full["hour"].between(6, 21)
+        
+                df_full.loc[mask_hc, "import_kWh"] = total_hc / mask_hc.sum()
+                df_full.loc[mask_hp, "import_kWh"] = total_hp / mask_hp.sum()
+    
+        elif expected_import_count == 6:
+            for _, row in df.iterrows():
+                day = row[date_col].date()
+
+                # Récupère uniquement les valeurs positives
+                positive_values = {col: row[col] for col in import_cols if row[col] > 0}
+            
+                if len(positive_values) != 2:
+                    st.warning(f"⚠️ Jour {day} : nombre inattendu de colonnes positives")
+                    continue
+            
+                # Identifier HC et HP
+                hc_col = [c for c in positive_values if "creuses" in c.lower()][0]
+                hp_col = [c for c in positive_values if "pleines" in c.lower()][0]
+            
+                total_hc = positive_values[hc_col]
+                total_hp = positive_values[hp_col]
+            
+                mask_day = df_full["date"] == day
+            
+                mask_hc = mask_day & df_full["hour"].between(0, 5)
+                mask_hp = mask_day & df_full["hour"].between(6, 21)
+            
+                df_full.loc[mask_hc, "import_kWh"] = total_hc / mask_hc.sum()
+                df_full.loc[mask_hp, "import_kWh"] = total_hp / mask_hp.sum()
+                
+        df_full = df_full.reset_index().rename(columns={"index": date_col})
+        df = df_full.sort_values(date_col).reset_index(drop=True)
+        
+        st.success("✅ Année reconstruite à partir des valeurs journalières.")
+        st.write(f"📊 Nombre de lignes : {len(df)}")
         st.dataframe(df.head())
 
     if data_mode == "Fichier EDF (mes-index-elec)" and not importExport_is_monthly and export_is_monthly :
