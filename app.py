@@ -352,7 +352,7 @@ def compute_import_export_cashflow(
     return import_cost, export_revenue
 
 # Fonction de détection ligne d'en-tête avec debug et expected_import_count
-def find_header_row(df, date_tokens, import_tokens, expected_import_count=6, max_rows=120):
+def find_header_row(df, date_tokens, import_tokens, expected_import_count=1, max_rows=120):
     """
     Cherche la ligne contenant au moins un token date et exactement `expected_import_count` tokens import.
     Affiche un debug ligne par ligne.
@@ -553,7 +553,7 @@ if uploaded_file:
                 expected_import_count = 6
         
         # Détection ligne d'en-tête
-        header_row = find_header_row(df_full, date_tokens, import_tokens)
+        header_row = find_header_row(df_full, date_tokens, import_tokens,expected_import_count)
         if header_row is None:
             st.error("❌ Impossible de détecter la ligne d'en-tête")
             st.stop()
