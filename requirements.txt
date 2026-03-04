@@ -1,0 +1,9 @@
+xlsxwriter
+matplotlib
+kaleido
+streamlit
+pandas
+numpy
+plotly
+openpyxl
+fpdf2
