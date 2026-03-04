@@ -401,12 +401,14 @@ def compute_import_export_cashflow(
 
     return import_cost, export_revenue
 
+# Fonction de détection ligne d'en-tête
 def find_header_row(df, date_tokens, import_tokens, max_rows=120):
     for r in range(min(max_rows, len(df))):
         row = df.iloc[r].astype(str).str.lower().str.strip().tolist()
         row_text = " | ".join(row)      
-        if any(t.lower() in row_text for t in date_tokens) \
-           and any(t.lower() in row_text for t in import_tokens):
+        if any(t in row_text for t in date_tokens) \
+           and any(t in row_text for t in import_tokens) \
+           and any(t in row_text for t in export_tokens):
             return r
     return None
 
