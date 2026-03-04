@@ -146,13 +146,13 @@ if MotCle:
 st.sidebar.header("💰 Paramètres des Tarifs GRD")
 mode_tarif = st.sidebar.selectbox(
     "Type de tarification",
-    ["Tarif unique", "HP/HC"]
+    ["Tarif unique", "Multi Tarifs"]
 )
 
 # ==============================
 # MODE HP / HC
 # ==============================
-if mode_tarif == "HP/HC":
+if mode_tarif == "Multi Tarifs":
     # -----------------------
     # Sélection GRD
     # -----------------------
@@ -169,8 +169,7 @@ if mode_tarif == "HP/HC":
     # Définition defaults
     # -----------------------
     default_hp = [(6, 22)]
-
-
+    
     # ==============================
     # INITIALISATION & RESET PROPRE
     # ==============================
@@ -352,7 +351,7 @@ if importExport_is_monthly:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-# Fonction calul auto du gain HP/HC + Horaires
+# Fonction calul auto du gain Multi Tarifs + Horaires
 def compute_gain_with_time_of_use(
     imp_array,
     exp_array,
@@ -1640,7 +1639,7 @@ if uploaded_file:
         
         st.success("✅ Aucune valeur négative détectée")
 
-        st.subheader("🔍 DEBUG TARIFICATION HP/HC")
+        st.subheader("🔍 DEBUG TARIFICATION Multi Tarifs")
 
         # Reconstruction masque HP
         is_hp = np.zeros(len(hours), dtype=bool)
