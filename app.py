@@ -601,6 +601,8 @@ if uploaded_file:
         if header_row is None:
             st.error("❌ Impossible de détecter la ligne d'en-tête")
             st.stop()
+            
+        df = pd.read_csv(uploaded_file, header=header_row, sep=None, engine='python')
         
         # Réinitialiser l'état avant chaque fichier
         find_columns.used_columns = set()
