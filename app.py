@@ -1254,14 +1254,14 @@ if uploaded_file:
 
                 results.append([cap, p, gain, eq_cycles])
 
-        results_df = pd.DataFrame(results, columns=["Cap_kWh","Power_kW","Gain_€","Cycles"])
-        gain_max = results_df["Gain_€"].max()
+        results_df = pd.DataFrame(results, columns=["Cap_kWh","Power_kW","Gain_Euro","Cycles"])
+        gain_max = results_df["Gain_Euro"].max()
         threshold = gain_threshold * gain_max
-        candidates = results_df[results_df["Gain_€"] >= threshold]
+        candidates = results_df[results_df["Gain_Euro"] >= threshold]
         best = candidates.sort_values(["Cap_kWh","Power_kW"], ignore_index=True).iloc[0]
 
     st.success(f"🔋 Batterie optimale : {best.Cap_kWh} kWh / {best.Power_kW} kW")
-    st.success(f"Gain annuel: {round(best.Gain_€,2)} €")
+    st.success(f"Gain annuel: {round(best.Gain_Euro,2)} €")
 
     # ===========================
     # Résumé de la batterie réelle
@@ -1447,7 +1447,7 @@ if uploaded_file:
     st.subheader("📊 Gain annuel vs Capacité batterie")
 
     # On moyenne le gain sur toutes les puissances pour chaque capacité
-    gain_by_cap = results_df.groupby("Cap_kWh")["Gain_€"].max()  # ou .mean() si tu veux moyenne
+    gain_by_cap = results_df.groupby("Cap_kWh")["Gain_Euro"].max()  # ou .mean() si tu veux moyenne
 
     fig_gain, ax_gain = plt.subplots(figsize=(10,5))
     ax_gain.plot(gain_by_cap.index, gain_by_cap.values, marker='o', color='green')
