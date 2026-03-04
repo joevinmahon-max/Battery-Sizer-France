@@ -559,11 +559,11 @@ if uploaded_file:
             # Lire sans header pour détecter la ligne d'en-tête
             df_full = pd.read_csv(
                 uploaded_file,
-                header=None,
+                header=None,          # Ne pas utiliser la première ligne comme header
                 sep=';',
                 engine='python',
                 encoding='latin1',
-                on_bad_lines='skip'  # ignore les lignes mal formées
+                on_bad_lines='skip'   # Ignore les lignes mal formées
             )
             uploaded_file.seek(0)  # Remettre le curseur au début
         # Affichage du fichier converti
