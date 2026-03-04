@@ -361,7 +361,7 @@ def find_header_row(df, date_tokens, import_tokens, expected_import_count=1, max
     for r in range(min(max_rows, len(df))):
         row = df.iloc[r].astype(str).str.strip().tolist()
         if len(row) < 2:
-            st.write(f"Ligne {r} ignorée (trop courte ou vide) :", row)
+            #st.write(f"Ligne {r} ignorée (trop courte ou vide) :", row)
             continue
 
         row_text = " | ".join(row)
@@ -373,9 +373,9 @@ def find_header_row(df, date_tokens, import_tokens, expected_import_count=1, max
         import_count = sum(1 for t in import_tokens if t.lower() in row_text.lower())
 
         # Debug complet
-        st.write(f"Ligne {r} :", row)
-        st.write(f" → texte concaténé : {row_text}")
-        st.write(f" → date_match={date_match}, import_count={import_count}/{expected_import_count}")
+        #st.write(f"Ligne {r} :", row)
+        #st.write(f" → texte concaténé : {row_text}")
+        #st.write(f" → date_match={date_match}, import_count={import_count}/{expected_import_count}")
 
 
         if date_match and import_count == expected_import_count:
@@ -619,7 +619,7 @@ if uploaded_file:
         year_counts = df.groupby("year")[date_col].nunique()
         
         # Identifier années complètes (365 ou 366 jours)
-        complete_years = year_counts[year_counts.isin([365, 366])]
+        complete_years = year_counts[year_counts.isin([360, 366])]
         
         if complete_years.empty:
             st.error("❌ Aucune année complète (365/366 jours) trouvée dans les données.")
