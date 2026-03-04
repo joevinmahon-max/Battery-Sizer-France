@@ -565,9 +565,6 @@ if uploaded_file:
                 on_bad_lines='skip'  # ignore les lignes mal formées
             )
             uploaded_file.seek(0)  # Remettre le curseur au début
-        else:
-            df_full = pd.read_excel(uploaded_file, header=None)
-            uploaded_file.seek(0)  # Remettre le curseur au début
 
         # Choix des tokens import selon le tarif
         if mode_tarif == "Tarif unique":
@@ -593,12 +590,6 @@ if uploaded_file:
         if header_row is None:
             st.error("❌ Impossible de détecter la ligne d'en-tête")
             st.stop()
-        
-        # Lecture du fichier avec header détecté
-        if file_type == "csv":
-            df = pd.read_csv(uploaded_file, header=header_row, sep=None, engine='python')
-        else:
-            df = pd.read_excel(uploaded_file, header=header_row)
         
         # Réinitialiser l'état avant chaque fichier
         find_columns.used_columns = set()
