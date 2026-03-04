@@ -566,6 +566,9 @@ if uploaded_file:
                 on_bad_lines='skip'  # ignore les lignes mal formées
             )
             uploaded_file.seek(0)  # Remettre le curseur au début
+        # Affichage du fichier converti
+        st.write("✅ Fichier converti - aperçu :")
+        st.dataframe(df)
 
         # Choix des tokens import selon le tarif
         if mode_tarif == "Tarif unique":
