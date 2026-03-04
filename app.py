@@ -401,15 +401,17 @@ def compute_import_export_cashflow(
 
     return import_cost, export_revenue
 
-def find_header_row(df, date_tokens, import_tokens, max_rows=120):
+def find_header_row(df, date_tokens, import_tokens, max_rows=50):
     """
-    Détecte la ligne d'en-tête contenant au moins un token date ET au moins un token import.
-    On ignore complètement les colonnes export.
+    Détecte la ligne d'en-tête contenant un token date ET un token import.
+    Ignore les lignes vides ou résumés.
     """
     for r in range(min(max_rows, len(df))):
         row = df.iloc[r].astype(str).str.lower().str.strip().tolist()
         row_text = " | ".join(row)
-
+        # ignorer les lignes trop courtes
+        if len(row) < 2:
+            continue
         if any(t.lower() in row_text for t in date_tokens) \
            and any(t.lower() in row_text for t in import_tokens):
             return r
