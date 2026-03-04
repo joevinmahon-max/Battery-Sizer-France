@@ -53,7 +53,7 @@ LongBase = 0
 # PAGE CONFIG
 # ==========================================================
 st.set_page_config(page_title="Battery Sizer By JMN", layout="wide")
-st.title("Battery Sizer - For Switzerland - By JMN")
+st.title("Battery Sizer - For France - By JMN")
 
 # ==========================================================
 # SIDEBAR PARAMETERS
