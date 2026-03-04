@@ -600,7 +600,15 @@ if uploaded_file:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
         
         # Nettoyage date
-        df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+        # certaines dates peuvent avoir DST
+        df[date_col] = remove_dst(df[date_col])
+        
+        # Conversion en datetime
+        df[date_col] = pd.to_datetime(df[date_col], errors='coerce', utc=True)
+        
+        df[date_col] = df[date_col].dt.tz_convert(None)
+
+        # Trier par date
         df = df.sort_values(date_col).reset_index(drop=True)
 
         # Calcul des deltas (différences)
