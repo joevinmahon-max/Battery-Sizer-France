@@ -67,10 +67,7 @@ data_mode = st.sidebar.radio(
 )
 
 if data_mode == "Fichier EDF (mes-index-elec)":
-    unite = st.sidebar.selectbox(
-    "Unité des valeurs Import / Export",
-    ["kW", "kWh", "Wh"],
-    index=1)
+    unite="kWh"
     
     export_is_monthly = st.sidebar.checkbox(
         "Export fourni en total mensuel (kWh/mois)",
