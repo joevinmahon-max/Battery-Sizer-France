@@ -149,8 +149,6 @@ mode_tarif = st.sidebar.selectbox(
     ["Tarif unique", "HP/HC"]
 )
 
-weekend_hc = False
-
 # ==============================
 # MODE HP / HC
 # ==============================
@@ -159,12 +157,10 @@ if mode_tarif == "HP/HC":
     # Sélection GRD
     # -----------------------
     GRD = st.sidebar.selectbox(
-        "Sélection du GRD",
+        "Sélection du Tarif",
         [
-            "Groupe E (nouveau)",
-            "Romande - Bas-Valais Energie SA",
-            "Romande - Pully / Belmont",
-            "Manuel"
+            "Standard",
+            "Tempo",
         ],
         key="GRD_select"
     )
@@ -197,7 +193,6 @@ if mode_tarif == "HP/HC":
             "active_GRD": GRD,
             "hp_ranges": default_hp.copy(),
             "nb_plages": len(default_hp),
-            "weekend_hc": default_weekend
         }
 
     state = st.session_state.tarif_state
@@ -207,7 +202,6 @@ if mode_tarif == "HP/HC":
         state["active_GRD"] = GRD
         state["hp_ranges"] = default_hp.copy()
         state["nb_plages"] = len(default_hp)
-        state["weekend_hc"] = default_weekend
         # Suppression anciennes clés horaires
         for key in list(st.session_state.keys()):
             if key.startswith("hp_start_") or key.startswith("hp_end_"):
@@ -217,11 +211,6 @@ if mode_tarif == "HP/HC":
     # WEEK-END
     # ==============================
     st.sidebar.subheader("Plages horaires HP")
-
-    state["weekend_hc"] = st.sidebar.checkbox(
-        "Week-end entièrement en HC",
-        value=state["weekend_hc"]
-    )
 
     # ==============================
     # NOMBRE DE PLAGES
@@ -278,22 +267,20 @@ if mode_tarif == "HP/HC":
         state["hp_ranges"][i] = (start, end)
         hp_ranges.append((start, end))
 
-    weekend_hc = st.session_state.tarif_state["weekend_hc"]
-
     # -----------------------
     # TARIFS IMPORT
     # -----------------------
     st.sidebar.subheader("Import réseau")
 
     tariff_importHP = st.sidebar.number_input(
-        "Tarif import HP (CHF/kWh)",
+        "Tarif import HP (€/kWh)",
         min_value=0.0,
         value=0.32,
         step=0.01
     )
 
     tariff_importHC = st.sidebar.number_input(
-        "Tarif import HC (CHF/kWh)",
+        "Tarif import HC (€/kWh)",
         min_value=0.0,
         value=0.21,
         step=0.01
@@ -305,7 +292,7 @@ if mode_tarif == "HP/HC":
     st.sidebar.subheader("Export réseau")
 
     tariff_export = st.sidebar.number_input(
-        "Tarif export (CHF/kWh)",
+        "Tarif export (€/kWh)",
         min_value=0.0,
         value=0.08,
         step=0.01
@@ -317,7 +304,7 @@ if mode_tarif == "HP/HC":
 else:
     st.sidebar.subheader("Import / Export réseau")
     tariff_importHP = st.sidebar.number_input(
-        "Tarif import (CHF/kWh)",
+        "Tarif import (€/kWh)",
         min_value=0.0,
         value=0.32,
         step=0.01
@@ -326,15 +313,13 @@ else:
     tariff_importHC = tariff_importHP  # identique
 
     tariff_export = st.sidebar.number_input(
-        "Tarif export (CHF/kWh)",
+        "Tarif export (€/kWh)",
         min_value=0.0,
         value=0.08,
         step=0.01
     )
 
     hp_ranges = []  # pas utilisé
-    weekend_hc = False
-
 
 st.sidebar.header("⚙️ Paramètres")
 debug = st.sidebar.checkbox("Avec / Sans DEBUG", value=False)
@@ -397,10 +382,6 @@ def compute_gain_with_time_of_use(
     for start, end in hp_ranges:
         is_hp |= (hours >= start) & (hours < end)
 
-    if weekend_hc:
-        timestamps_local = df.index
-        is_hp[weekdays >= 5] = False
-
     import_tariffs = np.where(is_hp, tariff_importHP, tariff_importHC)
 
     gain = np.sum(import_avoided * import_tariffs - export_avoided * tariff_export)
@@ -424,10 +405,6 @@ def compute_import_export_cashflow(
 
     for start, end in hp_ranges:
         is_hp |= (hours >= start) & (hours < end)
-
-    # Week-end entièrement en HC
-    if weekend_hc:
-        is_hp[weekdays >= 5] = False  # 5 = samedi, 6 = dimanche
 
     # Sélection du tarif import
     import_tariffs = np.where(is_hp, tariff_importHP, tariff_importHC)
@@ -1236,8 +1213,8 @@ if uploaded_file:
         weekdays
     )
     
-    #st.write(f"Coût total import : {import_cost:.2f} CHF")
-    #st.write(f"Revenu total export : {export_revenue:.2f} CHF")
+    #st.write(f"Coût total import : {import_cost:.2f} €")
+    #st.write(f"Revenu total export : {export_revenue:.2f} €")
         
     with st.spinner("Simulation et recherche du meilleur choix..."):
         exp_array = df["export_kWh"].values
@@ -1277,14 +1254,14 @@ if uploaded_file:
 
                 results.append([cap, p, gain, eq_cycles])
 
-        results_df = pd.DataFrame(results, columns=["Cap_kWh","Power_kW","Gain_CHF","Cycles"])
-        gain_max = results_df["Gain_CHF"].max()
+        results_df = pd.DataFrame(results, columns=["Cap_kWh","Power_kW","Gain_€","Cycles"])
+        gain_max = results_df["Gain_€"].max()
         threshold = gain_threshold * gain_max
-        candidates = results_df[results_df["Gain_CHF"] >= threshold]
+        candidates = results_df[results_df["Gain_€"] >= threshold]
         best = candidates.sort_values(["Cap_kWh","Power_kW"], ignore_index=True).iloc[0]
 
     st.success(f"🔋 Batterie optimale : {best.Cap_kWh} kWh / {best.Power_kW} kW")
-    st.success(f"Gain annuel: {round(best.Gain_CHF,2)} CHF")
+    st.success(f"Gain annuel: {round(best.Gain_€,2)} €")
 
     # ===========================
     # Résumé de la batterie réelle
@@ -1313,7 +1290,7 @@ if uploaded_file:
     hours,
     weekdays
     )
-    st.write(f"- Verification Gain réel simulation : {gain_real:.2f} CHF")
+    st.write(f"- Verification Gain réel simulation : {gain_real:.2f} €")
 
     # ==========================================================
     # SOC VECTORISÉ
@@ -1470,12 +1447,12 @@ if uploaded_file:
     st.subheader("📊 Gain annuel vs Capacité batterie")
 
     # On moyenne le gain sur toutes les puissances pour chaque capacité
-    gain_by_cap = results_df.groupby("Cap_kWh")["Gain_CHF"].max()  # ou .mean() si tu veux moyenne
+    gain_by_cap = results_df.groupby("Cap_kWh")["Gain_€"].max()  # ou .mean() si tu veux moyenne
 
     fig_gain, ax_gain = plt.subplots(figsize=(10,5))
     ax_gain.plot(gain_by_cap.index, gain_by_cap.values, marker='o', color='green')
     ax_gain.set_xlabel("Capacité batterie (kWh)")
-    ax_gain.set_ylabel("Gain annuel (CHF)")
+    ax_gain.set_ylabel("Gain annuel (€)")
     ax_gain.set_title("Gain annuel en fonction de la capacité de la batterie")
     ax_gain.grid(alpha=0.3)
 
@@ -1684,11 +1661,6 @@ if uploaded_file:
         for start, end in hp_ranges:
             is_hp |= (hours >= start) & (hours < end)
     
-        # Gestion week-end
-        if weekend_hc:
-            weekdays = timestamps.dt.weekday.to_numpy()
-            is_hp[weekdays >= 5] = False
-    
         hp_count = np.sum(is_hp)
         hc_count = len(is_hp) - hp_count
     
@@ -1707,7 +1679,7 @@ if uploaded_file:
         st.subheader("🔍 Test sensibilité tarif")
     
         test_gain_hp_plus = np.sum((imp_array - imp_after) * (tariff_importHP + 0.05))
-        st.write("Gain si HP + 0.05 CHF :", test_gain_hp_plus)
+        st.write("Gain si HP + 0.05 € :", test_gain_hp_plus)
 
     
         st.subheader("🔍 Test FULL HP")
@@ -1841,10 +1813,9 @@ if uploaded_file:
             ["Puissance min (kW)", p_min],
             ["Puissance max (kW)", p_max],
             ["Pas puissance (kW)", p_step],
-            ["Tarif import HP (CHF/kWh)", tariff_importHP],
-            ["Tarif import HC (CHF/kWh)", tariff_importHC],
-            ["Tarif export (CHF/kWh)", tariff_export],
-            ["Week-end entièrement en HC", weekend_hc],
+            ["Tarif import HP (€/kWh)", tariff_importHP],
+            ["Tarif import HC (€/kWh)", tariff_importHC],
+            ["Tarif export (€/kWh)", tariff_export],
             ["Plages horaires HP", hp_ranges_str],
             ["Percentile export journalier", daily_percentile],
         ]
@@ -1866,8 +1837,8 @@ if uploaded_file:
         results_table = [
             ["Capacité optimale (kWh)", best.Cap_kWh],
             ["Puissance optimale (kW)", best.Power_kW],
-            ["Gain annuel net (CHF)", round(gain_net, 2)],
-            ["Gain maximum (CHF)", round(gain_max, 2)],
+            ["Gain annuel net (€)", round(gain_net, 2)],
+            ["Gain maximum (€)", round(gain_max, 2)],
             ["Seuil choisi (%)", gain_threshold*100],
             ["Cycles équivalents/an", round(eq_cycles, 2)],
             ["SOC min réel (%)", round(soc_min_real/best.Cap_kWh*100, 1)],
@@ -1910,10 +1881,9 @@ if uploaded_file:
             ["Capacité max (kWh)", cap_max],
             ["Puissance min (kW)", p_min],
             ["Puissance max (kW)", p_max],
-            ["Tarif import HP (CHF/kWh)", tariff_importHP],
-            ["Tarif import HC (CHF/kWh)", tariff_importHC],
-            ["Tarif export (CHF/kWh)", tariff_export],
-            ["Week-end entièrement en HC", weekend_hc],
+            ["Tarif import HP (€/kWh)", tariff_importHP],
+            ["Tarif import HC (€/kWh)", tariff_importHC],
+            ["Tarif export (€/kWh)", tariff_export],
             ["Plages horaires HP", hp_ranges_str],
         ]
         # Dessiner tableau
