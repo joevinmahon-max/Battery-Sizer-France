@@ -615,18 +615,18 @@ if uploaded_file:
         # Extraire l'année
         df["year"] = df[date_col].dt.year
         
-        # Compter le nombre de jours par année
+        # Compter le nombre de jours uniques par année
         year_counts = df.groupby("year")[date_col].nunique()
         
         # Garde les années avec 360 à 366 jours
-        complete_years = year_counts[(year_counts >= 350) & (year_counts <= 366)].index.tolist()
+        complete_years = year_counts[(year_counts >= 360) & (year_counts <= 366)].index.tolist()
         
         if not complete_years:
-            st.error("❌ Aucune année complète détectée dans les données (350–366 jours).")
+            st.error("❌ Aucune année complète détectée dans les données (360–366 jours).")
             st.stop()
-            
+        
         # Si plusieurs années complètes → prendre la plus récente
-        year = complete_years.index.max()
+        year = max(complete_years)
         
         st.success(f"✅ Année complète détectée : {year}")
         
