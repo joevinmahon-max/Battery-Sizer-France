@@ -1537,7 +1537,7 @@ if uploaded_file:
             ["Tarif import HC (€/kWh)", tariff_importHC],
             ["Tarif export (€/kWh)", tariff_export],
             ["Plages horaires HP", hp_ranges_str],
-            ["Percentile export journalier", daily_percentile],
+            ["Percentile export journalier", daily_percentile]
         ]
 
         # Dessiner tableau
