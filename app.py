@@ -168,21 +168,8 @@ if mode_tarif == "HP/HC":
     # -----------------------
     # Définition defaults
     # -----------------------
-    if GRD == "Groupe E (nouveau)":
-        default_hp = [(7, 12), (17, 23)]
-        default_weekend = False
+    default_hp = [(6, 22)]
 
-    elif GRD == "Romande - Bas-Valais Energie SA":
-        default_hp = [(17, 22)]
-        default_weekend = True
-
-    elif GRD == "Romande - Pully / Belmont":
-        default_hp = [(6, 22)]
-        default_weekend = False
-
-    else:  # Manuel
-        default_hp = [(6, 22)]
-        default_weekend = False
 
     # ==============================
     # INITIALISATION & RESET PROPRE
