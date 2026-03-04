@@ -688,6 +688,7 @@ if uploaded_file:
         df_full["date"] = df_full.index.date
         df_full["hour"] = df_full.index.hour
         df_full["import_kWh"] = 0.0
+        df_full["export_kWh"] = 0.0
 
         if expected_import_count == 1:
             for _, row in df_diff.iterrows():
