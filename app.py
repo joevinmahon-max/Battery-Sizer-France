@@ -568,7 +568,7 @@ if uploaded_file:
 
         if file_type == "csv":
             # Lire sans header pour détecter la ligne d'en-tête
-            df_full = pd.read_csv(uploaded_file, header=None, sep=None, engine='python')
+            df_full = pd.read_csv(uploaded_file, header=None, sep=None, engine='python',encoding='latin1')
             uploaded_file.seek(0)  # Remettre le curseur au début
         else:
             df_full = pd.read_excel(uploaded_file, header=None)
