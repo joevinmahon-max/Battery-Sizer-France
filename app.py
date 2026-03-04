@@ -569,13 +569,13 @@ if uploaded_file:
         find_columns.used_columns = set()
         
         # Détection colonnes import
-        import_cols = find_columns(df, import_tokens, expected_import_count)
-        if import_cols is None:
+        imp_col = find_columns(df, import_tokens, expected_import_count)
+        if imp_col is None:
             st.error(f"❌ Impossible de détecter exactement {expected_import_count} colonnes import")
             st.write("Colonnes disponibles :", list(df.columns))
             st.stop()
         else:
-            st.success(f"Colonnes import détectées : {import_cols}")
+            st.success(f"Colonnes import détectées : {imp_col}")
         
         # Détection colonne date
         date_col = find_columns(df, date_tokens, expected_count=1)[0]
@@ -593,7 +593,7 @@ if uploaded_file:
         st.header("🔹 Reconstruction journalière")
 
         # Nettoyage numérique (toutes les colonnes import)
-        for col in import_cols:
+        for col in imp_col:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
         
         # Nettoyage date
@@ -603,7 +603,7 @@ if uploaded_file:
         # Calcul des deltas (différences)
         df_diff = df.copy()
         
-        for col in import_cols:
+        for col in imp_col:
             df_diff[col] = df[col].diff()
         
         # On supprime la première ligne (pas de delta)
@@ -651,7 +651,7 @@ if uploaded_file:
         if expected_import_count == 1:
             for _, row in df_diff.iterrows():
                 day = row[date_col].date()
-                total = row[import_cols[0]]
+                total = row[imp_col[0]]
         
                 if total <= 0:
                     continue
@@ -662,8 +662,8 @@ if uploaded_file:
                 df_full.loc[mask, "import_kWh"] = total / steps
         
         elif expected_import_count == 2:
-            hc_col = import_cols[0]
-            hp_col = import_cols[1]
+            hc_col = imp_col[0]
+            hp_col = imp_col[1]
         
             for _, row in df_diff.iterrows():
                 day = row[date_col].date()
@@ -689,7 +689,7 @@ if uploaded_file:
                 day = row[date_col].date()
         
                 # On prend seulement les deltas positifs
-                positive = {col: row[col] for col in import_cols if row[col] > 0}
+                positive = {col: row[col] for col in imp_col if row[col] > 0}
         
                 if len(positive) < 2:
                     continue
