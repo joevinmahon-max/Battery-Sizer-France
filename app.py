@@ -429,7 +429,7 @@ def find_header_row(df, date_tokens, import_tokens, expected_import_count=6, max
     return None
 
 # Fonction de détection collones
-def find_column(df, tokens):
+def find_columns(df, tokens):
     import re
     
     # Colonnes déjà sélectionnées (stockées dynamiquement)
