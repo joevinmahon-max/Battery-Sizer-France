@@ -1533,9 +1533,9 @@ if uploaded_file:
             ["Puissance min (kW)", p_min],
             ["Puissance max (kW)", p_max],
             ["Pas puissance (kW)", p_step],
-            ["Tarif import HP (€/kWh)", tariff_importHP],
-            ["Tarif import HC (€/kWh)", tariff_importHC],
-            ["Tarif export (€/kWh)", tariff_export],
+            ["Tarif import HP (Euros/kWh)", tariff_importHP],
+            ["Tarif import HC (Euros/kWh)", tariff_importHC],
+            ["Tarif export (Euros/kWh)", tariff_export],
             ["Plages horaires HP", hp_ranges_str],
             ["Percentile export journalier", daily_percentile]
         ]
@@ -1557,8 +1557,8 @@ if uploaded_file:
         results_table = [
             ["Capacité optimale (kWh)", best.Cap_kWh],
             ["Puissance optimale (kW)", best.Power_kW],
-            ["Gain annuel net (€)", round(gain_net, 2)],
-            ["Gain maximum (€)", round(gain_max, 2)],
+            ["Gain annuel net (Euros)", round(gain_net, 2)],
+            ["Gain maximum (Euros)", round(gain_max, 2)],
             ["Seuil choisi (%)", gain_threshold*100],
             ["Cycles équivalents/an", round(eq_cycles, 2)],
             ["SOC min réel (%)", round(soc_min_real/best.Cap_kWh*100, 1)],
@@ -1601,9 +1601,9 @@ if uploaded_file:
             ["Capacité max (kWh)", cap_max],
             ["Puissance min (kW)", p_min],
             ["Puissance max (kW)", p_max],
-            ["Tarif import HP (€/kWh)", tariff_importHP],
-            ["Tarif import HC (€/kWh)", tariff_importHC],
-            ["Tarif export (€/kWh)", tariff_export],
+            ["Tarif import HP (Euros/kWh)", tariff_importHP],
+            ["Tarif import HC (Euros/kWh)", tariff_importHC],
+            ["Tarif export (Euros/kWh)", tariff_export],
             ["Plages horaires HP", hp_ranges_str],
         ]
         # Dessiner tableau
