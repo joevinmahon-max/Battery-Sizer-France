@@ -401,45 +401,36 @@ def compute_import_export_cashflow(
 
     return import_cost, export_revenue
 
-# Fonction de détection ligne d'en-tête
-def find_header_row(df, date_tokens, import_tokens, max_rows=120):
+def find_header_row(df, date_tokens, import_tokens, max_rows=50):
+    """
+    Détecte la ligne d'en-tête qui contient au moins un token date et
+    au moins un token import. Ignore les lignes de résumé ou vides.
+    """
     for r in range(min(max_rows, len(df))):
         row = df.iloc[r].astype(str).str.lower().str.strip().tolist()
-        row_text = " | ".join(row)      
-        if any(t in row_text for t in date_tokens) \
-           and any(t in row_text for t in import_tokens) \
-           and any(t in row_text for t in export_tokens):
+        if len(row) < 2:  # ligne trop courte, probablement résumé
+            continue
+        row_text = " | ".join(row)
+        date_match = any(t.lower() in row_text for t in date_tokens)
+        import_match = any(t.lower() in row_text for t in import_tokens)
+        if date_match and import_match:
             return r
     return None
 
-def find_columns(df, import_tokens, expected_count=1):
+def find_columns(df, tokens, expected_count):
     """
     Retourne la liste des colonnes import correspondant aux tokens
-    et selon le nombre attendu (1, 2 ou 6). Ignore les colonnes export.
+    et selon le nombre attendu (1,2 ou 6).
     """
-    import re
-
     found_cols = []
-
-    # Colonnes déjà utilisées (statique pour éviter doublons)
-    if not hasattr(find_columns, "used_columns"):
-        find_columns.used_columns = set()
-
     for col in df.columns:
-        if col in find_columns.used_columns:
-            continue
-
         col_lower = str(col).lower()
-        for t in import_tokens:
+        for t in tokens:
             if re.search(rf"\b{re.escape(t.lower())}\b", col_lower):
                 found_cols.append(col)
-                find_columns.used_columns.add(col)
-                break  # Passe au prochain col
-
+                break
         if len(found_cols) == expected_count:
             break
-
-    # Vérification du nombre exact
     if len(found_cols) != expected_count:
         return None
     return found_cols
