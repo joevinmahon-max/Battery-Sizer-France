@@ -641,13 +641,41 @@ if uploaded_file:
         # Nettoyage date
         df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
         df = df.sort_values(date_col).reset_index(drop=True)
+
+        # Calcul des deltas (différences)
+        df_diff = df.copy()
         
+        for col in import_cols:
+            df_diff[col] = df[col].diff()
+        
+        # On supprime la première ligne (pas de delta)
+        df_diff = df_diff.iloc[1:].reset_index(drop=True)
+        
+        # Extraire l'année
+        df["year"] = df[date_col].dt.year
+        
+        # Compter le nombre de jours par année
+        year_counts = df.groupby("year")[date_col].nunique()
+        
+        # Identifier années complètes (365 ou 366 jours)
+        complete_years = year_counts[year_counts.isin([365, 366])]
+        
+        if complete_years.empty:
+            st.error("❌ Aucune année complète (365/366 jours) trouvée dans les données.")
+            st.stop()
+        
+        # Si plusieurs années complètes → prendre la plus récente
+        year = complete_years.index.max()
+        
+        st.success(f"✅ Année complète détectée : {year}")
+        
+        # Filtrer uniquement cette année
+        df = df[df["year"] == year].reset_index(drop=True)
+
         # Vérification : on attend 365 ou 366 lignes (1 par jour)
         if len(df) < 300:
             st.error("❌ Le fichier semble ne pas contenir des valeurs journalières complètes.")
             st.stop()
-        
-        year = df[date_col].dt.year.mode()[0]
         
         # Création index annuel horaire
         date_range = pd.date_range(
@@ -662,9 +690,12 @@ if uploaded_file:
         df_full["import_kWh"] = 0.0
 
         if expected_import_count == 1:
-            for _, row in df.iterrows():
+            for _, row in df_diff.iterrows():
                 day = row[date_col].date()
                 total = row[import_cols[0]]
+        
+                if total <= 0:
+                    continue
         
                 mask = df_full["date"] == day
                 steps = mask.sum()
@@ -674,44 +705,51 @@ if uploaded_file:
         elif expected_import_count == 2:
             hc_col = import_cols[0]
             hp_col = import_cols[1]
-            for _, row in df.iterrows():
+        
+            for _, row in df_diff.iterrows():
                 day = row[date_col].date()
+        
                 total_hc = row[hc_col]
                 total_hp = row[hp_col]
         
-                mask_day = df_full["date"] == day
+                if total_hc <= 0 and total_hp <= 0:
+                    continue
         
+                mask_day = df_full["date"] == day
                 mask_hc = mask_day & df_full["hour"].between(0, 5)
                 mask_hp = mask_day & df_full["hour"].between(6, 21)
         
-                df_full.loc[mask_hc, "import_kWh"] = total_hc / mask_hc.sum()
-                df_full.loc[mask_hp, "import_kWh"] = total_hp / mask_hp.sum()
+                if mask_hc.sum() > 0:
+                    df_full.loc[mask_hc, "import_kWh"] = total_hc / mask_hc.sum()
+        
+                if mask_hp.sum() > 0:
+                    df_full.loc[mask_hp, "import_kWh"] = total_hp / mask_hp.sum()
     
         elif expected_import_count == 6:
-            for _, row in df.iterrows():
+            for _, row in df_diff.iterrows():
                 day = row[date_col].date()
-
-                # Récupère uniquement les valeurs positives
-                positive_values = {col: row[col] for col in import_cols if row[col] > 0}
-            
-                if len(positive_values) != 2:
-                    st.warning(f"⚠️ Jour {day} : nombre inattendu de colonnes positives")
+        
+                # On prend seulement les deltas positifs
+                positive = {col: row[col] for col in import_cols if row[col] > 0}
+        
+                if len(positive) < 2:
                     continue
-            
-                # Identifier HC et HP
-                hc_col = [c for c in positive_values if "creuses" in c.lower()][0]
-                hp_col = [c for c in positive_values if "pleines" in c.lower()][0]
-            
-                total_hc = positive_values[hc_col]
-                total_hp = positive_values[hp_col]
-            
+        
+                hc_col = [c for c in positive if "creuses" in c.lower()][0]
+                hp_col = [c for c in positive if "pleines" in c.lower()][0]
+        
+                total_hc = positive[hc_col]
+                total_hp = positive[hp_col]
+        
                 mask_day = df_full["date"] == day
-            
                 mask_hc = mask_day & df_full["hour"].between(0, 5)
                 mask_hp = mask_day & df_full["hour"].between(6, 21)
-            
-                df_full.loc[mask_hc, "import_kWh"] = total_hc / mask_hc.sum()
-                df_full.loc[mask_hp, "import_kWh"] = total_hp / mask_hp.sum()
+        
+                if mask_hc.sum() > 0:
+                    df_full.loc[mask_hc, "import_kWh"] = total_hc / mask_hc.sum()
+        
+                if mask_hp.sum() > 0:
+                    df_full.loc[mask_hp, "import_kWh"] = total_hp / mask_hp.sum()
                 
         df_full = df_full.reset_index().rename(columns={"index": date_col})
         df = df_full.sort_values(date_col).reset_index(drop=True)
