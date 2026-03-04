@@ -8,7 +8,6 @@ from fpdf import FPDF
 from io import BytesIO
 from zoneinfo import ZoneInfo  # gestion fuseaux horaires standard
 import matplotlib.dates as mdates
-st.stop
 
 # Fonction de gestion des dates
 def remove_dst(dt_series):
