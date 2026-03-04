@@ -602,7 +602,15 @@ if uploaded_file:
             st.error("❌ Impossible de détecter la ligne d'en-tête")
             st.stop()
             
-        df = pd.read_csv(uploaded_file, header=header_row, sep=None, engine='python')
+        # ✅ Construire le vrai dataframe avec header correct
+        header = df_full.iloc[header_row].tolist()
+        data = df_full.iloc[header_row + 1:].reset_index(drop=True)
+    
+        df = pd.DataFrame(data.values, columns=header)
+    
+        st.success(f"Ligne d'en-tête détectée : {header_row}")
+        st.write("✅ DataFrame final :")
+        st.dataframe(df.head())
         
         # Réinitialiser l'état avant chaque fichier
         find_columns.used_columns = set()
