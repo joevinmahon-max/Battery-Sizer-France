@@ -506,7 +506,7 @@ if uploaded_file:
     if data_mode == "Fichier EDF (mes-index-elec)":
         file_type = uploaded_file.name.split('.')[-1].lower()
         date_tokens = ["début", "date", "datetime", "horodatage", "timestamp", "date/heure", "date heure"]
-        import_tokens = ["kWh"]
+        import_tokensBase = ["kWh"]
         import_tokensHPHC = ["Creuses", "Pleines"]
         import_tokensTempo = ["Creuses Bleu", "Pleines Bleu", "Creuses Blanc", "Pleines Blanc", "Creuses Rouge", "Pleines Rouge"]
         export_tokens = ["surplus", "surplus solaire", "export", "excedent", "reinjection", "réinjection", "positive", "injection"]
@@ -535,7 +535,7 @@ if uploaded_file:
 
         # Choix des tokens import selon le tarif
         if mode_tarif == "Tarif unique":
-            import_tokens = import_tokens
+            import_tokens = import_tokensBase
             expected_import_count = 1
         elif mode_tarif == "Multi Tarifs":
             if GRD == "Standard":
