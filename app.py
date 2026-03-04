@@ -626,16 +626,9 @@ if uploaded_file:
         # Compter le nombre de jours uniques par année
         year_counts = df.groupby("year")[date_col].nunique()
         
-        # DEBUG : afficher toutes les années et leur nombre de jours uniques
-        st.write("🔍 Nombre de jours uniques par année :")
-        st.write(year_counts)
-        
         # Définir plage acceptée (ici 360 à 366)
         min_days, max_days = 360, 366
         complete_years = year_counts[(year_counts >= min_days) & (year_counts <= max_days)].index.tolist()
-        
-        # DEBUG : afficher années retenues
-        st.write(f"✅ Années avec {min_days}-{max_days} jours uniques :", complete_years)
         
         if not complete_years:
             st.error(f"❌ Aucune année complète détectée dans les données ({min_days}–{max_days} jours).")
