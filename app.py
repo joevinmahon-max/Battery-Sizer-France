@@ -72,50 +72,44 @@ if data_mode == "Fichier EDF (mes-index-elec)":
         value=False
     )
     if not importExport_is_monthly :
-        unite = st.sidebar.selectbox(
-        "Unité des valeurs Import / Export",
-        ["kW", "kWh", "Wh"],
-        index=1)
-        
-        export_is_monthly = st.sidebar.checkbox(
-            "Export fourni en total mensuel (kWh/mois)",
-            value=False
-        )
-        monthly_export_values = None            
-        if export_is_monthly:
-            st.sidebar.markdown("#### Saisir les 12 valeurs d'export (kWh)")
-            months = [
-                "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-                "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
-            ]
-            monthly_export_values = {}
-            for month in months:
-                monthly_export_values[month] = st.sidebar.number_input(
-                    f"{month} (kWh)",
-                    min_value=0.0,
-                    value=0.0,
-                    step=10.0
-                )
-            # Vérification qu'il y a bien 12 valeurs
-            if len(monthly_export_values) != 12:
-                st.error("❌ Les 12 mois doivent être renseignés.")
-                st.stop()
-            # Vérification qu'aucune valeur n'est vide ou nulle
-            missing_months = [
-                month for month, value in monthly_export_values.items()
-                if value is None or value <= 0
-            ]
-            if missing_months:
-                st.error(f"❌ Valeur manquante ou nulle pour : {', '.join(missing_months)}")
-                st.stop()
-    else:
-        unite="kWh"
-        export_is_monthly = False
-            
-if unite == "kW":
-    values_are_kw = True
-else:
-    values_are_kw = False
+    unite = st.sidebar.selectbox(
+    "Unité des valeurs Import / Export",
+    ["kW", "kWh", "Wh"],
+    index=1)
+    
+    export_is_monthly = st.sidebar.checkbox(
+        "Export fourni en total mensuel (kWh/mois)",
+        value=False
+    )
+    monthly_export_values = None            
+    if export_is_monthly:
+        st.sidebar.markdown("#### Saisir les 12 valeurs d'export (kWh)")
+        months = [
+            "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+            "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
+        ]
+        monthly_export_values = {}
+        for month in months:
+            monthly_export_values[month] = st.sidebar.number_input(
+                f"{month} (kWh)",
+                min_value=0.0,
+                value=0.0,
+                step=10.0
+            )
+        # Vérification qu'il y a bien 12 valeurs
+        if len(monthly_export_values) != 12:
+            st.error("❌ Les 12 mois doivent être renseignés.")
+            st.stop()
+        # Vérification qu'aucune valeur n'est vide ou nulle
+        missing_months = [
+            month for month, value in monthly_export_values.items()
+            if value is None or value <= 0
+        ]
+        if missing_months:
+            st.error(f"❌ Valeur manquante ou nulle pour : {', '.join(missing_months)}")
+            st.stop()
+
+values_are_kw = False
 
 st.sidebar.subheader("🔎 Mots-clés personnalisés (optionnel)")
 MotCle = st.sidebar.checkbox("Avec / Sans", value=False)
@@ -124,17 +118,15 @@ if MotCle:
         "Mots-clés Date (séparés par virgule)",
         value=""
     )
-    
     custom_import_tokens = st.sidebar.text_input(
         "Mots-clés Import (séparés par virgule)",
         value=""
     )
-    
     custom_export_tokens = st.sidebar.text_input(
         "Mots-clés Export (séparés par virgule)",
         value=""
     )
-
+    
 st.sidebar.header("💰 Paramètres des Tarifs GRD")
 mode_tarif = st.sidebar.selectbox(
     "Type de tarification",
@@ -318,32 +310,7 @@ if capacite_auto:
     max_auto_extensions = st.sidebar.number_input("Nombre max d'auto-extensions", 1, 10, 5)
     cap_securite = st.sidebar.number_input("Capacité plafond sécurité (kWh)", 10, 10000, 10000)
 
-if importExport_is_monthly:
-    # Dates de fin de mois pour 2025
-    dates = pd.date_range(start="2025-01-31", end="2025-12-31", freq='M')
-    
-    # DataFrame vide
-    df = pd.DataFrame({
-        "Date": dates,
-        "Import (kWh)": [0]*12,
-        "Export (kWh)": [0]*12
-    })
-    
-    # Conversion en Excel en mémoire (sans writer.save())
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='ImportExport')
-    excel_data = output.getvalue()
-    
-    # Bouton de téléchargement
-    st.download_button(
-        label="⬇️ Télécharger le fichier Excel type mensuel",
-        data=excel_data,
-        file_name="ImportExport_mensuel.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
 
-# Fonction calul auto du gain Multi Tarifs + Horaires
 def compute_gain_with_time_of_use(
     imp_array,
     exp_array,
@@ -759,7 +726,7 @@ if uploaded_file:
         st.write(f"📊 Nombre de lignes : {len(df)}")
         st.dataframe(df.head())
 
-    if data_mode == "Fichier EDF (mes-index-elec)" and not importExport_is_monthly and export_is_monthly :
+    if data_mode == "Fichier EDF (mes-index-elec)" and export_is_monthly :
         st.header(" 🔹 Nettoyage et conversion")
         st.info("⚙️ Reconstruction d’un profil export à partir des totaux mensuels.")
         # -----------------------------------------
@@ -1530,7 +1497,7 @@ if uploaded_file:
         # -------------------------
         # AJOUT INFO EXPORT MENSUEL
         # -------------------------
-        if data_mode == "Fichier EDF (mes-index-elec)" and not importExport_is_monthly and export_is_monthly :
+        if data_mode == "Fichier EDF (mes-index-elec)" and export_is_monthly :
             pdf.set_font("Arial", 'I', 12)
             pdf.multi_cell(0, 8,
                 "Profil export reconstitué à partir des totaux mensuels.")
@@ -1563,7 +1530,6 @@ if uploaded_file:
             
         param_table = [
             ["Pas de temps (h)", dt_hours],
-            ["Reconstruction du profil annuel Import/Export par totaux mensuels.", importExport_is_monthly],
             ["Reconstruction du profil annuel Export par totaux mensuels.", export_is_monthly],
             ["Unité des valeurs", unite],
             ["Rendement aller-retour", roundtrip_eff],
