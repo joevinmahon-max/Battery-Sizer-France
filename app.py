@@ -568,7 +568,7 @@ if uploaded_file:
             uploaded_file.seek(0)  # Remettre le curseur au début
         # Affichage du fichier converti
         st.write("✅ Fichier converti - aperçu :")
-        st.dataframe(df)
+        st.dataframe(df_full)
 
         # Choix des tokens import selon le tarif
         if mode_tarif == "Tarif unique":
