@@ -619,10 +619,10 @@ if uploaded_file:
         year_counts = df.groupby("year")[date_col].nunique()
         
         # Garde les années avec 360 à 366 jours
-        complete_years = year_counts[(year_counts >= 360) & (year_counts <= 366)].index.tolist()
+        complete_years = year_counts[(year_counts >= 350) & (year_counts <= 366)].index.tolist()
         
         if not complete_years:
-            st.error("❌ Aucune année complète détectée dans les données (360–366 jours).")
+            st.error("❌ Aucune année complète détectée dans les données (350–366 jours).")
             st.stop()
             
         # Si plusieurs années complètes → prendre la plus récente
