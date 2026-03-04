@@ -429,26 +429,29 @@ def find_header_row(df, date_tokens, import_tokens, expected_import_count=6, max
     return None
 
 # Fonction de détection collones
-def find_columns(df, tokens):
-    import re
-    
-    # Colonnes déjà sélectionnées (stockées dynamiquement)
-    if not hasattr(find_column, "used_columns"):
-        find_column.used_columns = set()
+def find_columns(df, tokens, expected_count):
+    found_cols = []
+    used_columns = set()
 
     for col in df.columns:
-        if col in find_column.used_columns:
+        if col in used_columns:
             continue
 
-        col_lower = str(col).lower()
+        col_str = str(col).strip()
 
         for t in tokens:
-            # match mot entier uniquement
-            if re.search(rf"\b{re.escape(t)}\b", col_lower):
-                find_column.used_columns.add(col)
-                return col
+            if t.lower() in col_str.lower():
+                found_cols.append(col)
+                used_columns.add(col)
+                break
 
-    return None
+        if len(found_cols) == expected_count:
+            break
+
+    if len(found_cols) != expected_count:
+        return None
+
+    return found_cols
 
 # Fonction de SIMULATION BATTERIE -- COEUR DU PROG
 def simulate_battery(exp_array, imp_array, cap_kwh, power_kw, soc_min_pct, eta, dt_hours):
