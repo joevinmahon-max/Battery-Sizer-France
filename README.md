@@ -48,11 +48,6 @@ Deux modes :
     Plages horaires configurables
     Week-end entièrement HC (option)
     Tarifs distincts Import HP / HC
-    
-    Sélection GRD prédéfinie :
-      Groupe E
-      Romande Energie
-      Manuel
 
 4️⃣ Simulation batterie
 
