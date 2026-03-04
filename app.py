@@ -401,30 +401,38 @@ def compute_import_export_cashflow(
 
     return import_cost, export_revenue
 
-# Fonction de détection ligne d'en-tête selon expected_import_count
-def find_header_row(df, date_tokens, import_tokens, expected_import_count=1, max_rows=120):
+# Fonction de détection ligne d'en-tête avec debug et expected_import_count
+def find_header_row(df, date_tokens, import_tokens, expected_import_count=6, max_rows=120):
     """
     Cherche la ligne contenant au moins un token date et exactement `expected_import_count` tokens import.
+    Affiche un debug ligne par ligne.
     Ignore les lignes trop courtes ou vides.
-    Ne tient pas compte des colonnes export.
     """
     for r in range(min(max_rows, len(df))):
         row = df.iloc[r].astype(str).str.strip().tolist()
-        if len(row) < 2:  # ligne trop courte, probablement résumé ou vide
+        if len(row) < 2:
+            st.write(f"Ligne {r} ignorée (trop courte ou vide) :", row)
             continue
 
         row_text = " | ".join(row)
 
-        # Vérifie la présence d'au moins un token date
+        # Vérifie présence d'au moins un token date
         date_match = any(t in row_text for t in date_tokens)
 
         # Compte combien de tokens import sont présents dans la ligne
         import_count = sum(1 for t in import_tokens if t in row_text)
 
-        if date_match and import_count == expected_import_count:
-            return r  # ligne détectée comme en-tête
+        # Debug complet
+        st.write(f"Ligne {r} :", row)
+        st.write(f" → texte concaténé : {row_text}")
+        st.write(f" → date_match={date_match}, import_count={import_count}/{expected_import_count}")
 
-    return None  # si aucune ligne n'a été trouvée
+        if date_match and import_count == expected_import_count:
+            st.success(f"Ligne d'en-tête détectée : {r}")
+            return r
+
+    st.error("❌ Aucune ligne d'en-tête trouvée")
+    return None
 
 # Fonction de détection collones
 def find_column(df, tokens):
