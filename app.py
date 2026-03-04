@@ -361,6 +361,7 @@ def find_header_row(df, date_tokens, import_tokens, expected_import_count=6, max
     for r in range(min(max_rows, len(df))):
         row = df.iloc[r].astype(str).str.strip().tolist()
         if len(row) < 2:
+            st.write(f"Ligne {r} ignorée (trop courte ou vide) :", row)
             continue
 
         row_text = " | ".join(row)
@@ -370,6 +371,12 @@ def find_header_row(df, date_tokens, import_tokens, expected_import_count=6, max
 
         # Compte combien de tokens import sont présents (insensible à la casse)
         import_count = sum(1 for t in import_tokens if t.lower() in row_text.lower())
+
+        # Debug complet
+        st.write(f"Ligne {r} :", row)
+        st.write(f" → texte concaténé : {row_text}")
+        st.write(f" → date_match={date_match}, import_count={import_count}/{expected_import_count}")
+
 
         if date_match and import_count == expected_import_count:
             st.success(f"Ligne d'en-tête détectée : {r}")
