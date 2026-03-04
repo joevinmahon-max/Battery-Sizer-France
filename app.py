@@ -556,19 +556,15 @@ if uploaded_file:
                 export_tokens += [t.strip().lower() for t in custom_export_tokens.split(",")]
 
         if file_type == "csv":
-            # Lire sans header pour détecter la ligne d'en-tête
-            df_full = pd.read_csv(
-                uploaded_file,
-                header=None,          # Ne pas utiliser la première ligne comme header
-                sep=';',
-                engine='python',
-                encoding='latin1',
-                on_bad_lines='skip'   # Ignore les lignes mal formées
-            )
-            uploaded_file.seek(0)  # Remettre le curseur au début
-        # Affichage du fichier converti
-        st.write("✅ Fichier converti - aperçu :")
-        st.dataframe(df_full)
+            # Lire tout le fichier comme texte
+            content = uploaded_file.read().decode("latin1")
+            lines = [line for line in content.splitlines() if line.strip() != ""]  # supprime les lignes vides
+            
+            # Convertir en DataFrame
+            df_full = pd.DataFrame([line.split(";") for line in lines])
+            
+            st.write("✅ Fichier converti - aperçu :")
+            st.dataframe(df_full)
 
         # Choix des tokens import selon le tarif
         if mode_tarif == "Tarif unique":
