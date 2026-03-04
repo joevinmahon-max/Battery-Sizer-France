@@ -63,10 +63,10 @@ dt_hours = 0.25
 st.sidebar.header("📂 Type de données")
 data_mode = st.sidebar.radio(
     "Format des données",
-    ["Fichier GRD (Excel/CSV unique)", "Fichiers mensuels (12 fichiers cumulés HUAWEI)"]
+    ["Fichier EDF (mes-index-elec)", "Fichiers mensuels (12 fichiers cumulés HUAWEI)"]
 )
 
-if data_mode == "Fichier GRD (Excel/CSV unique)":
+if data_mode == "Fichier EDF (mes-index-elec)":
     importExport_is_monthly = st.sidebar.checkbox(
         "Import / Export fourni en total mensuel Excel (kWh/mois)",
         value=False
@@ -401,38 +401,51 @@ def compute_import_export_cashflow(
 
     return import_cost, export_revenue
 
-# Fonction de détection ligne d'en-tête
-def find_header_row(df, date_tokens, import_tokens, export_tokens, max_rows=120):
+def find_header_row(df, date_tokens, import_tokens, max_rows=120):
+    """
+    Détecte la ligne d'en-tête contenant au moins un token date ET au moins un token import.
+    On ignore complètement les colonnes export.
+    """
     for r in range(min(max_rows, len(df))):
         row = df.iloc[r].astype(str).str.lower().str.strip().tolist()
-        row_text = " | ".join(row)      
-        if any(t in row_text for t in date_tokens) \
-           and any(t in row_text for t in import_tokens) \
-           and any(t in row_text for t in export_tokens):
+        row_text = " | ".join(row)
+
+        if any(t.lower() in row_text for t in date_tokens) \
+           and any(t.lower() in row_text for t in import_tokens):
             return r
     return None
 
-# Fonction de détection collones
-def find_column(df, tokens):
+def find_columns(df, import_tokens, expected_count=1):
+    """
+    Retourne la liste des colonnes import correspondant aux tokens
+    et selon le nombre attendu (1, 2 ou 6). Ignore les colonnes export.
+    """
     import re
-    
-    # Colonnes déjà sélectionnées (stockées dynamiquement)
-    if not hasattr(find_column, "used_columns"):
-        find_column.used_columns = set()
+
+    found_cols = []
+
+    # Colonnes déjà utilisées (statique pour éviter doublons)
+    if not hasattr(find_columns, "used_columns"):
+        find_columns.used_columns = set()
 
     for col in df.columns:
-        if col in find_column.used_columns:
+        if col in find_columns.used_columns:
             continue
 
         col_lower = str(col).lower()
+        for t in import_tokens:
+            if re.search(rf"\b{re.escape(t.lower())}\b", col_lower):
+                found_cols.append(col)
+                find_columns.used_columns.add(col)
+                break  # Passe au prochain col
 
-        for t in tokens:
-            # match mot entier uniquement
-            if re.search(rf"\b{re.escape(t)}\b", col_lower):
-                find_column.used_columns.add(col)
-                return col
+        if len(found_cols) == expected_count:
+            break
 
-    return None
+    # Vérification du nombre exact
+    if len(found_cols) != expected_count:
+        return None
+    return found_cols
 
 # Fonction de SIMULATION BATTERIE -- COEUR DU PROG
 def simulate_battery(exp_array, imp_array, cap_kwh, power_kw, soc_min_pct, eta, dt_hours):
@@ -488,16 +501,16 @@ def eq_cycles_dod(charge_series, discharge_series, cap_kwh, soc_min_pct):
     return eq_cycles
 
 # Choix du Type de fichier
-if data_mode == "Fichier GRD (Excel/CSV unique)":
+if data_mode == "Fichier EDF (mes-index-elec)":
     uploaded_file = st.file_uploader(
     (
-        "Choisir un fichier Excel ou CSV -- \n"
+        "Choisir un fichier CSV -- \n"
         "Mots clefs :\n"
         "date [date, datetime, horodatage, timestamp, date/heure, date heure] -- \n"
         "import [soutirage, import, achat, reseau, consommation] -- \n"
         "export [surplus, surplus solaire, export, excedent, reinjection, réinjection, injection]"
     ),
-    type=["xlsx", "xls", "csv"],
+    type=["csv"],
     accept_multiple_files=False
 )
 else:
@@ -534,10 +547,12 @@ if uploaded_file:
     # ==========================================================
     # CAS 1 : FICHIER GRD
     # ==========================================================
-    if data_mode == "Fichier GRD (Excel/CSV unique)":
+    if data_mode == "Fichier EDF (mes-index-elec)":
         file_type = uploaded_file.name.split('.')[-1].lower()
         date_tokens = ["début", "date", "datetime", "horodatage", "timestamp", "date/heure", "date heure"]
-        import_tokens = ["soutirage", "import", "achat", "reseau", "consommation", "négative"]
+        import_tokens = ["Index"]
+        import_tokensHPHC = ["Creuses", "Pleines"]
+        import_tokensTempo = ["Creuses Bleu", "Pleines Bleu", "Creuses Blanc", "Pleines Blanc", "Creuses Rouge", "Pleines Rouge"]
         export_tokens = ["surplus", "surplus solaire", "export", "excedent", "reinjection", "réinjection", "positive", "injection"]
 
         # Ajouter mots-clés personnalisés si fournis
@@ -559,31 +574,49 @@ if uploaded_file:
             df_full = pd.read_excel(uploaded_file, header=None)
             uploaded_file.seek(0)  # Remettre le curseur au début
 
-        header_row = find_header_row(df_full, date_tokens, import_tokens, export_tokens)
+        # Choix des tokens import selon le tarif
+        if mode_tarif == "Tarif unique":
+            import_tokens = ["Index"]
+            expected_import_count = 1
+        elif mode_tarif == "Multi Tarifs":
+            if GRD == "Standard":
+                import_tokens = ["Creuses", "Pleines"]
+                expected_import_count = 2
+            elif GRD == "Tempo":
+                import_tokens = [
+                    "Creuses Bleu", "Pleines Bleu",
+                    "Creuses Blanc", "Pleines Blanc",
+                    "Creuses Rouge", "Pleines Rouge"
+                ]
+                expected_import_count = 6
         
+        # Détection ligne d'en-tête
+        header_row = find_header_row(df_full, date_tokens, import_tokens)
         if header_row is None:
-            st.error(f"❌ Impossible de détecter la ligne d'en-tête dans {uploaded_file.name}")
-            st.warning(f"Vérifier que TOUS les mots clés sont présent sur la même ligne OU essayer par Mots-clés personnalisés")
-            st.info(f"date_tokens {date_tokens}")
-            st.info(f"import_tokens {import_tokens}")
-            st.info(f"export_tokens {export_tokens}")
+            st.error("❌ Impossible de détecter la ligne d'en-tête")
             st.stop()
-        else:
-            st.success(f"Ligne d'en-tête détectée : {header_row + 1}")
-
+        
+        # Lecture du fichier avec header détecté
         if file_type == "csv":
             df = pd.read_csv(uploaded_file, header=header_row, sep=None, engine='python')
         else:
             df = pd.read_excel(uploaded_file, header=header_row)
-
-        st.write("Aperçu des 5 premières lignes du fichier :")
-        st.write(f"📊 Nombre de lignes : {len(df)}")
-        # Verification de la longueur
-        LongBase = len(df)
-        st.dataframe(df.head())
         
         # Réinitialiser l'état avant chaque fichier
-        find_column.used_columns = set()
+        find_columns.used_columns = set()
+        
+        # Détection des colonnes import
+        import_cols = find_columns(df, import_tokens, expected_import_count)
+        if import_cols is None:
+            st.error(f"❌ Impossible de détecter exactement {expected_import_count} colonnes import")
+            st.write("Colonnes disponibles :", list(df.columns))
+            st.stop()
+        else:
+            st.success(f"Colonnes import détectées : {import_cols}")
+        
+        # Détection colonne date (toujours 1 seule)
+        date_col = find_columns(df, date_tokens, expected_count=1)[0]
+        st.success(f"Colonne date détectée : {date_col}")
 
         if importExport_is_monthly:
             date_col = find_column(df, date_tokens)
@@ -984,7 +1017,7 @@ if uploaded_file:
         st.success("✅ 12 fichiers mensuels fusionnés et convertis avec succès")
         st.dataframe(df.head())
 
-    if data_mode == "Fichier GRD (Excel/CSV unique)" and not importExport_is_monthly and export_is_monthly :
+    if data_mode == "Fichier EDF (mes-index-elec)" and not importExport_is_monthly and export_is_monthly :
         st.header(" 🔹 Nettoyage et conversion")
         st.info("⚙️ Reconstruction d’un profil export à partir des totaux mensuels.")
         # -----------------------------------------
@@ -1732,7 +1765,7 @@ if uploaded_file:
         # -------------------------
         # PAGE 1 : Couverture
         # -------------------------
-        if data_mode == "Fichier GRD (Excel/CSV unique)":
+        if data_mode == "Fichier EDF (mes-index-elec)":
             file_info = uploaded_file.name
         else:
             names = "\n".join([f.name for f in uploaded_file])
@@ -1755,7 +1788,7 @@ if uploaded_file:
         # -------------------------
         # AJOUT INFO EXPORT MENSUEL
         # -------------------------
-        if data_mode == "Fichier GRD (Excel/CSV unique)" and not importExport_is_monthly and export_is_monthly :
+        if data_mode == "Fichier EDF (mes-index-elec)" and not importExport_is_monthly and export_is_monthly :
             pdf.set_font("Arial", 'I', 12)
             pdf.multi_cell(0, 8,
                 "Profil export reconstitué à partir des totaux mensuels.")
