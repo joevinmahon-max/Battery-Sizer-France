@@ -401,37 +401,50 @@ def compute_import_export_cashflow(
 
     return import_cost, export_revenue
 
-# Fonction robuste pour détecter la ligne d'en-tête
-def find_header_row(df, date_tokens, import_tokens, max_rows=120):
+# ---------------------------
+# Détection ligne d'en-tête
+# ---------------------------
+def find_header_row(df, date_tokens, import_tokens, max_rows=200):
     """
     Cherche la ligne contenant au moins un token date ET un token import.
     Ignore les lignes trop courtes (résumés) ou vides.
+    Pas de normalisation.
     """
     for r in range(min(max_rows, len(df))):
-        row = df.iloc[r].astype(str).str.lower().str.strip().tolist()
-        if len(row) < 2:  # ligne trop courte, probablement résumé
+        row = df.iloc[r].astype(str).str.strip().tolist()
+        if len(row) < 2:  # ligne probablement résumé ou vide
             continue
         row_text = " | ".join(row)
-        date_match = any(t.lower() in row_text for t in date_tokens)
-        import_match = any(t.lower() in row_text for t in import_tokens)
+        date_match = any(t in row_text for t in date_tokens)
+        import_match = any(t in row_text for t in import_tokens)
         if date_match and import_match:
             return r
     return None
 
+# ---------------------------
+# Détection colonnes
+# ---------------------------
 def find_columns(df, tokens, expected_count):
     """
-    Retourne la liste des colonnes import correspondant aux tokens
-    et selon le nombre attendu (1,2 ou 6).
+    Cherche les colonnes correspondant aux tokens donnés.
+    Ne normalise pas, match exact partiel.
     """
+    if not hasattr(find_columns, "used_columns"):
+        find_columns.used_columns = set()
+
     found_cols = []
     for col in df.columns:
-        col_lower = str(col).lower()
+        if col in find_columns.used_columns:
+            continue
+        col_str = str(col).strip()
         for t in tokens:
-            if re.search(rf"\b{re.escape(t.lower())}\b", col_lower):
+            if t in col_str:  # match exact partiel, pas de normalisation
                 found_cols.append(col)
+                find_columns.used_columns.add(col)
                 break
         if len(found_cols) == expected_count:
             break
+
     if len(found_cols) != expected_count:
         return None
     return found_cols
@@ -591,10 +604,13 @@ if uploaded_file:
             st.error("❌ Impossible de détecter la ligne d'en-tête")
             st.stop()
         
+        # Lecture du fichier avec header détecté
+        df = pd.read_csv(uploaded_file, header=header_row, sep=';', engine='python', encoding='latin1', on_bad_lines='skip')
+        
         # Réinitialiser l'état avant chaque fichier
         find_columns.used_columns = set()
         
-        # Détection des colonnes import
+        # Détection colonnes import
         import_cols = find_columns(df, import_tokens, expected_import_count)
         if import_cols is None:
             st.error(f"❌ Impossible de détecter exactement {expected_import_count} colonnes import")
@@ -603,7 +619,7 @@ if uploaded_file:
         else:
             st.success(f"Colonnes import détectées : {import_cols}")
         
-        # Détection colonne date (toujours 1 seule)
+        # Détection colonne date
         date_col = find_columns(df, date_tokens, expected_count=1)[0]
         st.success(f"Colonne date détectée : {date_col}")
 
