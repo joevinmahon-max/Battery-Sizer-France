@@ -597,9 +597,6 @@ if uploaded_file:
         
         # Détection ligne d'en-tête
         header_row = find_header_row(df_full, date_tokens, import_tokens)
-        st.write("🔍 Aperçu des premières lignes brutes")
-        for i in range(min(10, len(df_full))):
-            st.write(i, df_full.iloc[i].tolist())
         if header_row is None:
             st.error("❌ Impossible de détecter la ligne d'en-tête")
             st.stop()
