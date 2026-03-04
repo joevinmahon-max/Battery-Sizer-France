@@ -417,10 +417,10 @@ def find_header_row(df, date_tokens, import_tokens, expected_import_count=6, max
         row_text = " | ".join(row)
 
         # Vérifie présence d'au moins un token date
-        date_match = any(t in row_text for t in date_tokens)
+        date_match = any(t.lower() in row_text.lower() for t in date_tokens)
 
-        # Compte combien de tokens import sont présents dans la ligne
-        import_count = sum(1 for t in import_tokens if t in row_text)
+        # Compte combien de tokens import sont présents (insensible à la casse)
+        import_count = sum(1 for t in import_tokens if t.lower() in row_text.lower())
 
         # Debug complet
         st.write(f"Ligne {r} :", row)
